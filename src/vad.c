@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "pav_analysis.h"
-
 #include "vad.h"
 
 const float FRAME_TIME = 10.0F; /* in ms. */
@@ -78,7 +77,7 @@ unsigned int vad_frame_size(VAD_DATA *vad_data) {
  * using a Finite State Automata
  */
 
-VAD_STATE vad(VAD_DATA *vad_data, float *x,float alpha1) {
+VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2) {
 
   /* 
    * TODO: You can change this, using your own features,
@@ -91,19 +90,19 @@ VAD_STATE vad(VAD_DATA *vad_data, float *x,float alpha1) {
   switch (vad_data->state) {
   case ST_INIT:
     vad_data->state = ST_SILENCE;
-    vad_data->p0=f.p; //guardamos la potencia inicial en vad_data
+    vad_data->p0 = f.p;
     break;
-
+//**********************************//
   case ST_SILENCE:
-    if (f.p > vad_data->p0+alpha1)
+    if (f.p > vad_data->p0 + alpha1)
       vad_data->state = ST_VOICE;
     break;
 
   case ST_VOICE:
-    if (f.p < vad_data->p0+alpha1)
+    if (f.p < vad_data->p0 + alpha2)
       vad_data->state = ST_SILENCE;
     break;
-
+//***********************************//
   case ST_UNDEF:
     break;
   }
