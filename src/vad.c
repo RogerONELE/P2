@@ -91,19 +91,59 @@ VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2) {
   case ST_INIT:
     vad_data->state = ST_SILENCE;
     vad_data->p0 = f.p;
+    vad_data->last_st_known = 's';
     break;
 //**********************************//
   case ST_SILENCE:
-    if (f.p > vad_data->p0 + alpha1)
-      vad_data->state = ST_VOICE;
+    if (f.p > vad_data->p0 + alpha1){
+      vad_data->state = ST_UNDEF;
+      vad_data->undef_count = 0;
+      vad_data->last_st_known = 's';
+    }
+
     break;
 
   case ST_VOICE:
-    if (f.p < vad_data->p0 + alpha2)
-      vad_data->state = ST_SILENCE;
+    if (f.p < vad_data->p0 + alpha2){
+      vad_data->state = ST_UNDEF;
+      vad_data->undef_count = 0;
+      vad_data->last_st_known = 'v';
+    }
+
     break;
 //***********************************//
   case ST_UNDEF:
+
+  // comprovar el cas SILENCE--> VOICE
+    if (f.p > vad_data->p0 + alpha1){
+        if(vad_data->undef_count<=2){
+        vad_data->state = ST_UNDEF;
+        vad_data->undef_count = vad_data->undef_count +1;
+        }
+        else{
+        vad_data->state = ST_VOICE; //Es confirma que es Voice  
+        }
+    }
+    else {
+      //estem per sota el llindar tornem a Silence
+      if (vad_data->last_st_known == 's')vad_data->state = ST_SILENCE;
+      }
+
+
+  // comprovar el cas VOICE --> SIlENCE
+    if (f.p < vad_data->p0 + alpha2){
+      if(vad_data->undef_count<=2){
+      vad_data->state = ST_UNDEF;
+      vad_data->undef_count = vad_data->undef_count +1;
+      }
+      else{
+        vad_data->state = ST_SILENCE; //Es confirma que es Silence
+        }
+    }
+    else {
+      //estem per sobre el llindar tornem a Voice
+      if (vad_data->last_st_known == 'v') vad_data->state = ST_VOICE;
+      }
     break;
   }
 

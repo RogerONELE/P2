@@ -16,6 +16,8 @@ typedef struct {
   float sampling_rate;
   unsigned int frame_length;
   float p0;
+  unsigned int undef_count;
+  char last_st_known;
   float last_feature; /* for debuggin purposes */
  
 } VAD_DATA;
