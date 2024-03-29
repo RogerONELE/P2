@@ -59,13 +59,32 @@ VAD_DATA * vad_open(float rate) {
 }
 
 VAD_STATE vad_close(VAD_DATA *vad_data) {
-  /* 
-   * TODO: decide what to do with the last undecided frames
-   */
-  VAD_STATE state = vad_data->state;
+    // Store the current state and last known state
+    VAD_STATE last_known_state = vad_data->last_st_known;
+    VAD_STATE next_state;
 
-  free(vad_data);
-  return state;
+    // If the last known state is undefined, wait until a valid state is received
+    if (last_known_state == ST_UNDEF) {
+        while (1) {
+            // Wait for the next state
+            next_state = vad_data->state;
+
+            // If the next state is voice or silence, break the loop
+            if (next_state == ST_VOICE || next_state == ST_SILENCE) {
+                break;
+            }
+        }
+
+        // Update all the undefined states to the next state
+        vad_data->state = next_state;
+        last_known_state = next_state;
+    }
+
+    // Free the memory allocated for the VAD_DATA structure
+    free(vad_data);
+
+    // Return the last known state
+    return last_known_state;
 }
 
 unsigned int vad_frame_size(VAD_DATA *vad_data) {
@@ -78,80 +97,50 @@ unsigned int vad_frame_size(VAD_DATA *vad_data) {
  */
 
 VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2) {
+    // Compute features of the input audio frame
+    Features f = compute_features(x, vad_data->frame_length);
 
-  /* 
-   * TODO: You can change this, using your own features,
-   * program finite state automaton, define conditions, etc.
-   */
+    // Update the VAD state based on the current state and computed features
+    switch (vad_data->state) {
+        case ST_INIT:
+            // Initialize VAD state and save initial feature
+            vad_data->state = ST_SILENCE;
+            vad_data->p0 = f.p;
+            vad_data->last_st_known = ST_SILENCE;
+            break;
 
-  Features f = compute_features(x, vad_data->frame_length);
-  vad_data->last_feature = f.p; /* save feature, in case you want to show */
+        case ST_SILENCE:
+            // Check if the feature exceeds the silence threshold
+            if (f.p > vad_data->p0 + alpha1) {
+                vad_data->state = ST_VOICE;  // Transition to voice state
+                vad_data->last_st_known = ST_SILENCE;
+            }
+            break;
 
-  switch (vad_data->state) {
-  case ST_INIT:
-    vad_data->state = ST_SILENCE;
-    vad_data->p0 = f.p;
-    vad_data->last_st_known = 's';
-    break;
-//**********************************//
-  case ST_SILENCE:
-    if (f.p > vad_data->p0 + alpha1){
-      vad_data->state = ST_UNDEF;
-      vad_data->undef_count = 0;
-      vad_data->last_st_known = 's';
+        case ST_VOICE:
+            // Check if the feature falls below the voice threshold
+            if (f.p < vad_data->p0 + alpha2) {
+                vad_data->state = ST_SILENCE;  // Transition to silence state
+                vad_data->last_st_known = ST_VOICE;
+            }
+            break;
+
+        case ST_UNDEF:
+            // Check for transition from silence to voice
+            if (f.p > vad_data->p0 + alpha1) {
+                vad_data->state = ST_VOICE;  // Transition to voice state
+                vad_data->undef_count = 0;
+                vad_data->last_st_known = ST_VOICE;
+            } else if (f.p < vad_data->p0 + alpha2) { // Check for transition from voice to silence
+                vad_data->state = ST_SILENCE;  // Transition to silence state
+                vad_data->undef_count = 0;
+                vad_data->last_st_known = ST_SILENCE;
+            }
+            break;
     }
 
-    break;
-
-  case ST_VOICE:
-    if (f.p < vad_data->p0 + alpha2){
-      vad_data->state = ST_UNDEF;
-      vad_data->undef_count = 0;
-      vad_data->last_st_known = 'v';
-    }
-
-    break;
-//***********************************//
-  case ST_UNDEF:
-
-  // comprovar el cas SILENCE--> VOICE
-    if (f.p > vad_data->p0 + alpha1){
-        if(vad_data->undef_count<=2){
-        vad_data->state = ST_UNDEF;
-        vad_data->undef_count = vad_data->undef_count +1;
-        }
-        else{
-        vad_data->state = ST_VOICE; //Es confirma que es Voice  
-        }
-    }
-    else {
-      //estem per sota el llindar tornem a Silence
-      if (vad_data->last_st_known == 's')vad_data->state = ST_SILENCE;
-      }
-
-
-  // comprovar el cas VOICE --> SILENCE
-    if (f.p < vad_data->p0 + alpha2){
-      if(vad_data->undef_count<=2){
-      vad_data->state = ST_UNDEF;
-      vad_data->undef_count = vad_data->undef_count +1;
-      }
-      else{
-        vad_data->state = ST_SILENCE; //Es confirma que es Silence
-        }
-    }
-    else {
-      //estem per sobre el llindar tornem a Voice
-      if (vad_data->last_st_known == 'v') vad_data->state = ST_VOICE;
-      }
-    break;
-  }
-
-  if (vad_data->state == ST_SILENCE ||
-      vad_data->state == ST_VOICE)
+    // Return the current state
     return vad_data->state;
-  else
-    return ST_UNDEF;
 }
 
 void vad_show_state(const VAD_DATA *vad_data, FILE *out) {
