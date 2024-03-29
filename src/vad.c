@@ -130,7 +130,7 @@ VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2) {
       }
 
 
-  // comprovar el cas VOICE --> SIlENCE
+  // comprovar el cas VOICE --> SILENCE
     if (f.p < vad_data->p0 + alpha2){
       if(vad_data->undef_count<=2){
       vad_data->state = ST_UNDEF;
