@@ -5,13 +5,13 @@
 #include "vad.h"
 
 const float FRAME_TIME = 10.0F; /* in ms. */
+const float MAX_DURATION = FRAME_TIME * 3.0F; /* Maximum duration in ms for an undefined state */
 
 /* 
  * As the output state is only ST_VOICE, ST_SILENCE, or ST_UNDEF,
- * only this labels are needed. You need to add all labels, in case
+ * only these labels are needed. You need to add all labels, in case
  * you want to print the internal state in string format
  */
-
 const char *state_str[] = {
   "UNDEF", "S", "V", "INIT"
 };
@@ -30,7 +30,6 @@ typedef struct {
 /* 
  * TODO: Delete and use your own features!
  */
-
 Features compute_features(const float *x, int N) {
   /*
    * Input: x[i] : i=0 .... N-1 
@@ -49,7 +48,6 @@ Features compute_features(const float *x, int N) {
 /* 
  * TODO: Init the values of vad_data
  */
-
 VAD_DATA * vad_open(float rate) {
   VAD_DATA *vad_data = malloc(sizeof(VAD_DATA));
   vad_data->state = ST_INIT;
@@ -59,32 +57,17 @@ VAD_DATA * vad_open(float rate) {
 }
 
 VAD_STATE vad_close(VAD_DATA *vad_data) {
-    // Store the current state and last known state
-    VAD_STATE last_known_state = vad_data->last_st_known;
-    VAD_STATE next_state;
-
-    // If the last known state is undefined, wait until a valid state is received
-    if (last_known_state == ST_UNDEF) {
-        while (1) {
-            // Wait for the next state
-            next_state = vad_data->state;
-
-            // If the next state is voice or silence, break the loop
-            if (next_state == ST_VOICE || next_state == ST_SILENCE) {
-                break;
-            }
-        }
-
-        // Update all the undefined states to the next state
-        vad_data->state = next_state;
-        last_known_state = next_state;
-    }
-
-    // Free the memory allocated for the VAD_DATA structure
-    free(vad_data);
-
-    // Return the last known state
-    return last_known_state;
+  /* 
+   * Handle the last undecided frames
+   */
+  VAD_STATE state = vad_data->state;
+  // Si aqui arriba un ST_UNDEFINED, 
+  // significa que ja son els ultims i no tenen opció de canviar
+  if (state == ST_UNDEF) {
+    state = ST_SILENCE; //Els declarem com silenci
+  }
+  free(vad_data);
+  return state;
 }
 
 unsigned int vad_frame_size(VAD_DATA *vad_data) {
@@ -92,57 +75,100 @@ unsigned int vad_frame_size(VAD_DATA *vad_data) {
 }
 
 /* 
- * TODO: Implement the Voice Activity Detection 
+ * Implement the Voice Activity Detection 
  * using a Finite State Automata
  */
-
 VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2) {
-    // Compute features of the input audio frame
-    Features f = compute_features(x, vad_data->frame_length);
+  // Compute features of the input audio frame
+  Features f = compute_features(x, vad_data->frame_length);
 
-    // Update the VAD state based on the current state and computed features
-    switch (vad_data->state) {
-        case ST_INIT:
-            // Initialize VAD state and save initial feature
-            vad_data->state = ST_SILENCE;
-            vad_data->p0 = f.p;
-            vad_data->last_st_known = ST_SILENCE;
-            break;
+  // Update the VAD state based on the current state and computed features
+  switch (vad_data->state) {
+    case ST_INIT:
+      // Inicialitza l'estat VAD i guarda la característica inicial
+      vad_data->state = ST_SILENCE;
+      vad_data->p0 = f.p;
+      vad_data->last_st_known = ST_SILENCE;
+      break;
 
-        case ST_SILENCE:
-            // Check if the feature exceeds the silence threshold
-            if (f.p > vad_data->p0 + alpha1) {
-                vad_data->state = ST_VOICE;  // Transition to voice state
-                vad_data->last_st_known = ST_SILENCE;
-            }
-            break;
+    case ST_SILENCE:
+      // Comprova si supera el llindar de silenci
+      if (f.p > vad_data->p0 + alpha1) {
+/*!!!!*/vad_data->state = ST_VOICE;  // Transició a l'estat undef 
+        vad_data->undef_count = 0;
+        vad_data->last_st_known = ST_SILENCE;
+      }
+      break;
 
-        case ST_VOICE:
-            // Check if the feature falls below the voice threshold
-            if (f.p < vad_data->p0 + alpha2) {
-                vad_data->state = ST_SILENCE;  // Transition to silence state
-                vad_data->last_st_known = ST_VOICE;
-            }
-            break;
+    case ST_VOICE:
+      // Comprova si no supera del llindar de veu
+      if (f.p < vad_data->p0 + alpha2) {
+/*!!!!*/vad_data->state = ST_SILENCE;  // Transició a l'estat undef
+        vad_data->undef_count = 0;
+        vad_data->last_st_known = ST_VOICE;
+      }
+      break;
 
-        case ST_UNDEF:
-            // Check for transition from silence to voice
-            if (f.p > vad_data->p0 + alpha1) {
-                vad_data->state = ST_VOICE;  // Transition to voice state
-                vad_data->undef_count = 0;
-                vad_data->last_st_known = ST_VOICE;
-            } else if (f.p < vad_data->p0 + alpha2) { // Check for transition from voice to silence
-                vad_data->state = ST_SILENCE;  // Transition to silence state
-                vad_data->undef_count = 0;
-                vad_data->last_st_known = ST_SILENCE;
-            }
-            break;
+    case ST_UNDEF:
+      if (f.p > vad_data->p0 + alpha1 && vad_data->last_st_known == ST_SILENCE) { 
+        // Si supera el llindar de silenci i l'últim estat conegut era silenci
+        if (vad_data->undef_count >= 3) {
+          // Si hi ha 3 o més estats undef consecutius que superen el llindar de silenci, canvia a veu
+          vad_data->state = ST_VOICE;
+          vad_data->last_st_known = ST_VOICE;
+        } else {
+          // Sinó, actualitza el comptador
+          vad_data->undef_count++;
+        }
+      } else if (f.p < vad_data->p0 + alpha2 && vad_data->last_st_known == ST_VOICE) {
+        // Si no supera el llindar de veu i l'últim estat conegut era veu
+        if (vad_data->undef_count >= 3) {
+          // Si hi ha 3 o més estats undef consecutius que no superen el llindar de veu, canvia a silenci
+          vad_data->state = ST_SILENCE;
+          vad_data->last_st_known = ST_SILENCE;
+        } else {
+          // Sinó, actualitza el comptador
+          vad_data->undef_count++;
+        }
+      } else {
+        // Cap dels casos anteriors -> surt de l'estat undef i reinicia el comptador
+        vad_data->state = vad_data->last_st_known;
+        vad_data->undef_count = 0;
+      }
+      // A partir d'aquí és per les últimes trames (en cas que acabés amb estat undef)
+      // Hi ha un contador que conta el temps de 5 trames. Si passat aquest temps una
+      // trama no ha sortit del estat undef, la considerem com si fos una trama final.
+      if (vad_data->state == ST_UNDEF) {
+        // Inicialitza el temps total de processament per a aquesta trama indefinida
+      float total_processing_time = 0.0;
+
+      // Bucle fins que s'obté un estat vàlid (veu o silenci) o s'excedeix la durada màxima
+      while (1) {
+        total_processing_time += FRAME_TIME / 1000.0;  
+
+        if (total_processing_time >= MAX_DURATION) {
+          // Si excedeix la durada màxima, canvia l'estat de les trames indefinides a silenci
+          vad_data->state = ST_SILENCE;
+          break;  
+        }
+
+        VAD_STATE next_state = vad_data->state;
+
+        // Si l'estat següent és veu o silenci, assigna'l a l'estat indefinit i surt del bucle
+        if (next_state == ST_VOICE || next_state == ST_SILENCE) {
+          vad_data->state = next_state;
+          break;
+        }
+      }
     }
+    break;
+  }
 
-    // Return the current state
-    return vad_data->state;
+  return vad_data->state;  //Unicament retorna ST_UNDEF si ha expirat el temporitzador
 }
+
 
 void vad_show_state(const VAD_DATA *vad_data, FILE *out) {
   fprintf(out, "%d\t%f\n", vad_data->state, vad_data->last_feature);
 }
+
