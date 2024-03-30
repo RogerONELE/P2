@@ -136,31 +136,47 @@ Ejercicios
   continuación, una captura de `wavesurfer` en la que se vea con claridad la señal temporal, el contorno de
   potencia y la tasa de cruces por cero, junto con el etiquetado manual de los segmentos.
 
+En el fichero de voz decimos la siguiente frase: 
+Todo comenzó con la forja de los grandes anillos. Tres fueron entregados a los elfos inmortales, los más sabios y bellos de todos los seres. Siete a los señores enanos, grandes mineros y artesanos de las cavidades montañosas. Y nueve… nueve fueron entregados a la raza de los hombres… que ansían por encima de todo el poder
+
+![alt text](image.png)
+
+Para separar voz o silencio, lo hemos ajustado tal y como nos parecio correcto al escucharlo. Principalmente, les silencios se corresponden a los instantes en que tomamos aire para respirar en los quales no decimos nada.
 
 - A la vista de la gráfica, indique qué valores considera adecuados para las magnitudes siguientes:
 
 	* Incremento del nivel potencia en dB, respecto al nivel correspondiente al silencio inicial, para
 	  estar seguros de que un segmento de señal se corresponde con voz.
-
+	  	- Los picos de potencia se encuentran entre los 60 y 70 dB. Justo al empezar el señal de voz, pasamos de 0 a 70 dB en la primera detección de voz. Tambien vemos que casualmente hemos detectado el silencio cuando la potencia bajaba de los 35 dB aprox.
 	* Duración mínima razonable de los segmentos de voz y silencio.
-
+		- Los segmentos de silencio, duran alrededor de 0.4 segundos. Hay algunos inferiores y otros de superiores, peroese seria un valor standard
 	* ¿Es capaz de sacar alguna conclusión a partir de la evolución de la tasa de cruces por cero?
-
+		- No hemos sabido sacar esta informacion en el wavesurfer, pero esta característica puede ayudar a discernir silencio (compuesto de ruido) de señales fricativas (/s/, /f/) de baja energía ya que presentan mayor contenido frecuencial, es decir que tendran una mayor tasa de cruces por cero
 
 ### Desarrollo del detector de actividad vocal
 
 - Complete el código de los ficheros de la práctica para implementar un detector de actividad vocal en
   tiempo real tan exacto como sea posible. Tome como objetivo la maximización de la puntuación-F `TOTAL`.
 
+Hemos hecho una implementación que utiliza dos valores alpha. Esto nos permite tener dos umbrales, uno 
+mas elevado para que el ruido tenga que ser mayor para que se detecte como voz, y otro mas bajo que implica que la voz debera ser muy baja para que se detecte como silencio.
+
+Ademas hemos implementado un valor delta que significa cuantas tramas seguidas sin definir han de suceder para que se cambie de un estado a otro.
 - Inserte una gráfica en la que se vea con claridad la señal temporal, el etiquetado manual y la detección
   automática conseguida para el fichero grabado al efecto. 
-
+![alt text](Grafico_Lab_vs_Vad.png)
 - Explique, si existen. las discrepancias entre el etiquetado manual y la detección automática.
+![alt text](Captura_VAD.png)
+
+Con nuestro audio grabado, los resultados de VAD son muy diferentes porque se detecta solo un silencio en el inicio y al empezar la voz todo queda marcado como voz.
+
+Hemos hecho los ajustes de los valores alfa1, alfa2 y delta para maximizar la F-Score. Pero con estos valores las etiquetas no se colocan de la forma correcta en nuestra grabación. Podemos ver que al alcanzarse el estado de voz, no se vuelve a llegar al estado de silencio. Hemos hecho pruebas para con otros valores buscar mejorar las estiquetas pero no conseguimos llegar  a detectar el silencio de nuevo.
 
 - Evalúe los resultados sobre la base de datos `db.v4` con el script `vad_evaluation.pl` e inserte a 
   continuación las tasas de sensibilidad (*recall*) y precisión para el conjunto de la base de datos (sólo
   el resumen).
-
+![alt text](RunVad_Summary.png)
+Utilizando el script "fot-li" hecho en el laboratorio, hemos ajustado los valores de alpha1 y aplha2.Tambien hemos ajustado los valores para delta.
 
 ### Trabajos de ampliación
 
@@ -190,3 +206,6 @@ Ejercicios
 Recuerde comprobar que el repositorio cuenta con los códigos correctos y en condiciones de ser 
 correctamente compilados con la orden `meson bin; ninja -C bin`. El programa generado (`bin/vad`) será
 el usado, sin más opciones, para realizar la evaluación *ciega* del sistema.
+
+
+[def]: image.png

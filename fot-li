@@ -1,7 +1,12 @@
 #! /bin/bash
 
+<<<<<<< HEAD
 for alpha1 in $(seq 11.7 0.1 11.7); do
     for alpha2 in $(seq 4.9 0.5 4.9); do
+=======
+for alpha1 in $(seq 8 0.2 10); do
+    for alpha2 in $(seq -1 0.2 3); do
+>>>>>>> e63f705a7dab34b2c39d1250cd5d222569db768d
         echo -n "$alpha1: "
         echo -n "$alpha2: "
         scripts/run_vad.sh $alpha1 $alpha2 | grep TOTAL

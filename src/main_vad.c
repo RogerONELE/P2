@@ -32,9 +32,9 @@ int main(int argc, char *argv[]) {
   input_wav  = args.input_wav;
   output_vad = args.output_vad;
   output_wav = args.output_wav;
-  float alpha1 = 11.7;//convertim la cadena char a float amb la funció atof
-  float alpha2 = 4.9;
-  float delta = 11;
+  float alpha1 = 11.7;  //definim el llindar 
+  float alpha2 = 4.9;   //definim un segon llindar
+  float delta = 11;     //definim un valor delta que marca quantes trames UNDEF han de pasar per canviar de estat
   unsigned int undef_count=0;
 
   if (input_wav == 0 || output_vad == 0) {
