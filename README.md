@@ -151,7 +151,7 @@ Para separar voz o silencio, lo hemos ajustado tal y como nos parecio correcto a
 	* Duración mínima razonable de los segmentos de voz y silencio.
 		- Los segmentos de silencio, duran alrededor de 0.4 segundos. Hay algunos inferiores y otros de superiores, peroese seria un valor standard
 	* ¿Es capaz de sacar alguna conclusión a partir de la evolución de la tasa de cruces por cero?
-		- No hemos sabido sacar esta informacion en el wavesurfer, pero lo mas seguro es que haya mas cruces por 0 en los silencios ya que debe haber un ruido de fondo que cuando hablamos queda camuflado. Si no hablamos, este ruido està presente en el señal y aumenta los cruces por cero. Aun asi repetimos, no hemos sabido mostrar esto en el wavesurfer
+		- No hemos sabido sacar esta informacion en el wavesurfer, pero esta característica puede ayudar a discernir silencio (compuesto de ruido) de señales fricativas (/s/, /f/) de baja energía ya que presentan mayor contenido frecuencial, es decir que tendran una mayor tasa de cruces por cero.
 
 ### Desarrollo del detector de actividad vocal
 
