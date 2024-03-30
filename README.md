@@ -136,16 +136,22 @@ Ejercicios
   continuación, una captura de `wavesurfer` en la que se vea con claridad la señal temporal, el contorno de
   potencia y la tasa de cruces por cero, junto con el etiquetado manual de los segmentos.
 
+En el fichero de voz decimos la siguiente frase: 
+Todo comenzó con la forja de los grandes anillos. Tres fueron entregados a los elfos inmortales, los más sabios y bellos de todos los seres. Siete a los señores enanos, grandes mineros y artesanos de las cavidades montañosas. Y nueve… nueve fueron entregados a la raza de los hombres… que ansían por encima de todo el poder
+
+![alt text](image.png)
+
+Para separar voz o silencio, lo hemos ajustado tal y como nos parecio correcto al escucharlo. Principalmente, les silencios se corresponden a los instantes en que tomamos aire para respirar en los quales no decimos nada.
 
 - A la vista de la gráfica, indique qué valores considera adecuados para las magnitudes siguientes:
 
 	* Incremento del nivel potencia en dB, respecto al nivel correspondiente al silencio inicial, para
 	  estar seguros de que un segmento de señal se corresponde con voz.
-
+	  	- Los picos de potencia se encuentran entre los 60 y 70 dB. Justo al empezar el señal de voz, pasamos de 0 a 70 dB en la primera detección de voz. Tambien vemos que casualmente hemos detectado el silencio cuando la potencia bajaba de los 35 dB aprox.
 	* Duración mínima razonable de los segmentos de voz y silencio.
-
+		- Los segmentos de silencio, duran alrededor de 0.4 segundos. Hay algunos inferiores y otros de superiores, peroese seria un valor standard
 	* ¿Es capaz de sacar alguna conclusión a partir de la evolución de la tasa de cruces por cero?
-
+		- No hemos sabido sacar esta informacion en el wavesurfer, pero lo mas seguro es que haya mas cruces por 0 en los silencios ya que debe haber un ruido de fondo que cuando hablamos queda camuflado. Si no hablamos, este ruido està presente en el señal y aumenta los cruces por cero. Aun asi repetimos, no hemos sabido mostrar esto en el wavesurfer
 
 ### Desarrollo del detector de actividad vocal
 
@@ -190,3 +196,6 @@ Ejercicios
 Recuerde comprobar que el repositorio cuenta con los códigos correctos y en condiciones de ser 
 correctamente compilados con la orden `meson bin; ninja -C bin`. El programa generado (`bin/vad`) será
 el usado, sin más opciones, para realizar la evaluación *ciega* del sistema.
+
+
+[def]: image.png
