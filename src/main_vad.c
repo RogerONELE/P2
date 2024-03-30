@@ -32,8 +32,10 @@ int main(int argc, char *argv[]) {
   input_wav  = args.input_wav;
   output_vad = args.output_vad;
   output_wav = args.output_wav;
-  float alpha1 = atof(args.alpha1);//convertim la cadena char a float amb la funció atof
-  float alpha2 = atof(args.alpha2);
+  float alpha1 = 11.7;//convertim la cadena char a float amb la funció atof
+  float alpha2 = 4.9;
+  float delta = 11;
+  unsigned int undef_count=0;
 
   if (input_wav == 0 || output_vad == 0) {
     fprintf(stderr, "%s\n", args.usage_pattern);
@@ -83,12 +85,28 @@ int main(int argc, char *argv[]) {
       /* TODO: copy all the samples into sndfile_out */
     }
 
-    state = vad(vad_data, buffer,alpha1,alpha2);
+    state = vad(vad_data, buffer,alpha1,alpha2,delta);
     if (verbose & DEBUG_VAD) vad_show_state(vad_data, stdout);
 
     /* TODO: print only SILENCE and VOICE labels */
     /* As it is, it prints UNDEF segments but is should be merge to the proper value */
+
+    if(state==ST_UNDEF) undef_count = undef_count + 1;
+    else undef_count = 0;
+    
     if (state != last_state) {
+      
+      if(last_state==ST_UNDEF){
+        if(undef_count>= delta){
+          
+          undef_count = 0;
+          if(state==ST_SILENCE) last_state=ST_VOICE;
+          else  last_state=ST_SILENCE;
+        } 
+        else{
+          last_state=state;
+        }
+      }
       if (t != last_t)
         fprintf(vadfile, "%.5f\t%.5f\t%s\n", last_t * frame_duration, t * frame_duration, state2str(last_state));
       last_state = state;

@@ -78,7 +78,7 @@ unsigned int vad_frame_size(VAD_DATA *vad_data) {
  * Implement the Voice Activity Detection 
  * using a Finite State Automata
  */
-VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2) {
+VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2, float delta) {
   // Compute features of the input audio frame
   Features f = compute_features(x, vad_data->frame_length);
 
@@ -88,80 +88,58 @@ VAD_STATE vad(VAD_DATA *vad_data, float *x, float alpha1, float alpha2) {
       // Inicialitza l'estat VAD i guarda la característica inicial
       vad_data->state = ST_SILENCE;
       vad_data->p0 = f.p;
-      vad_data->last_st_known = ST_SILENCE;
+      vad_data->last_state_known = ST_SILENCE;
       break;
 
     case ST_SILENCE:
-      // Comprova si supera el llindar de silenci
+      // Comprova si supera el llindar de veu
       if (f.p > vad_data->p0 + alpha1) {
-/*!!!!*/vad_data->state = ST_VOICE;  // Transició a l'estat undef 
+/*!!!!*/vad_data->state = ST_UNDEF;  // Transició a l'estat undef 
         vad_data->undef_count = 0;
-        vad_data->last_st_known = ST_SILENCE;
+        vad_data->last_state_known = ST_SILENCE;
       }
       break;
 
     case ST_VOICE:
-      // Comprova si no supera del llindar de veu
+      // Comprova si no supera del llindar de silenci
       if (f.p < vad_data->p0 + alpha2) {
-/*!!!!*/vad_data->state = ST_SILENCE;  // Transició a l'estat undef
+/*!!!!*/vad_data->state = ST_UNDEF;  // Transició a l'estat undef
         vad_data->undef_count = 0;
-        vad_data->last_st_known = ST_VOICE;
+        vad_data->last_state_known = ST_VOICE;
       }
       break;
 
     case ST_UNDEF:
-      if (f.p > vad_data->p0 + alpha1 && vad_data->last_st_known == ST_SILENCE) { 
-        // Si supera el llindar de silenci i l'últim estat conegut era silenci
-        if (vad_data->undef_count >= 3) {
-          // Si hi ha 3 o més estats undef consecutius que superen el llindar de silenci, canvia a veu
+
+    //Comprovar si es SILENCI ---> VEU
+      if (f.p > vad_data->p0 + alpha1) { 
+        // Si supera el llindar de silenci 
+            
+        if (vad_data->undef_count < delta +1){
+          vad_data->undef_count = vad_data->undef_count +1;
+          vad_data->state = ST_UNDEF;
+        }  
+        else
           vad_data->state = ST_VOICE;
-          vad_data->last_st_known = ST_VOICE;
-        } else {
-          // Sinó, actualitza el comptador
+      } 
+      else {
+           vad_data->state = ST_SILENCE;
+          
+        } 
+    //Comprovar si es  VEU ---> SILENCI
+      if (f.p < vad_data->p0 + alpha2) {
+        // Si no supera el llindar de veu
+        if (vad_data->undef_count < delta+1){
           vad_data->undef_count++;
-        }
-      } else if (f.p < vad_data->p0 + alpha2 && vad_data->last_st_known == ST_VOICE) {
-        // Si no supera el llindar de veu i l'últim estat conegut era veu
-        if (vad_data->undef_count >= 3) {
-          // Si hi ha 3 o més estats undef consecutius que no superen el llindar de veu, canvia a silenci
+          vad_data->state = ST_UNDEF;
+        }  
+        else
           vad_data->state = ST_SILENCE;
-          vad_data->last_st_known = ST_SILENCE;
-        } else {
-          // Sinó, actualitza el comptador
-          vad_data->undef_count++;
-        }
-      } else {
-        // Cap dels casos anteriors -> surt de l'estat undef i reinicia el comptador
-        vad_data->state = vad_data->last_st_known;
-        vad_data->undef_count = 0;
-      }
-      // A partir d'aquí és per les últimes trames (en cas que acabés amb estat undef)
-      // Hi ha un contador que conta el temps de 5 trames. Si passat aquest temps una
-      // trama no ha sortit del estat undef, la considerem com si fos una trama final.
-      if (vad_data->state == ST_UNDEF) {
-        // Inicialitza el temps total de processament per a aquesta trama indefinida
-      float total_processing_time = 0.0;
-
-      // Bucle fins que s'obté un estat vàlid (veu o silenci) o s'excedeix la durada màxima
-      while (1) {
-        total_processing_time += FRAME_TIME / 1000.0;  
-
-        if (total_processing_time >= MAX_DURATION) {
-          // Si excedeix la durada màxima, canvia l'estat de les trames indefinides a silenci
-          vad_data->state = ST_SILENCE;
-          break;  
-        }
-
-        VAD_STATE next_state = vad_data->state;
-
-        // Si l'estat següent és veu o silenci, assigna'l a l'estat indefinit i surt del bucle
-        if (next_state == ST_VOICE || next_state == ST_SILENCE) {
-          vad_data->state = next_state;
-          break;
-        }
-      }
-    }
-    break;
+      } 
+      else {
+           vad_data->state = ST_VOICE;
+      } 
+      break;
   }
 
   return vad_data->state;  //Unicament retorna ST_UNDEF si ha expirat el temporitzador
